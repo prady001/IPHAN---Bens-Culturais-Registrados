@@ -1,0 +1,4 @@
+Pillow
+selenium
+requests
+bs4
