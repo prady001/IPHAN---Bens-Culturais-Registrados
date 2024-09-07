@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import io
 from PIL import Image
 import os
+import math
 
 # Define the URL
 url = "https://bcr.iphan.gov.br/wp-json/tainacan/v2/items/?perpage=96&order=ASC&orderby=date&exposer=html&paged=1"
@@ -54,7 +55,8 @@ if table:
     rows = table.find('tbody').find_all('tr')
     
     image_counter = 0
-    max_images = 20  # Limit to 20 images
+    # baixar todas as imagens
+    max_images  = math.inf
     
     for row in rows:
         if image_counter >= max_images:
@@ -74,12 +76,20 @@ if table:
         description_filename = f"{title}.txt".replace('/', '_').replace(' ', '_')
         save_description(download_path, description_filename, description)
         
-        # Extract and download all images (assuming images URLs are in 'Mídias' column)
-        media_column = cells[headers.index('Mídias')].find_all('img') if 'Mídias' in headers else []
+        # Extract and visit the link for detailed image page
+        link_column = cells[headers.index('Mídias')].find_all('a') if 'Mídias' in headers else []
         
-        if media_column:
-            for img_tag in media_column:
-                img_url = img_tag.get('src')
+        for link_tag in link_column:
+            link_url = link_tag.get('href')
+            if link_url and link_url.startswith('http'):
+                # Visit the link to find the detailed image
+                image_page_response = requests.get(link_url)
+                image_page_soup = BeautifulSoup(image_page_response.content, 'html.parser')
+                
+                # Find the image in the swiper-slide-content class
+                image_tag = image_page_soup.find('div', class_='swiper-slide-content').find('img')
+                img_url = image_tag.get('src') if image_tag else None
+                
                 if img_url and img_url.startswith('http'):
                     # Generate a filename based on the title and image index
                     img_filename = f"{title}_{image_counter + 1}.jpg".replace('/', '_').replace(' ', '_')  # sanitize filename
@@ -87,6 +97,6 @@ if table:
                     image_counter += 1
                     if image_counter >= max_images:
                         break
-
+                        
 else:
     print("Table not found in the HTML content.")
